@@ -1,0 +1,133 @@
+---
+title: "Membuat Word Cloud dari Hasil Crawling Twitter dengan R"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+Tidak seperti data biasanya, data teks memiliki teknik khusus dalam penggalian informasinya (*text mining*). Salah satu metode *text mining* yang populer adalah memvisualisasikan data teks dengan ***word cloud*** (disebut juga *text cloud* atau *tag cloud*). Setiap kata yang terdapat pada teks disusun sedemikian rupa dengan ukuran yang bervariasi sesuai frekuensi kemunculannya dalam data. Semakin sering kata digunakan semakin besar ukuran kata tersebut dalam ***Word Cloud***
+
+Artikel ini bertujuan untuk membuat ***Word Cloud*** yang bersumber dari data cuitan (*tweets*) pengguna twitter yang mengandung kata kunci tertentu. Kata kunci tersebut dapat berupa nama produk, brand, tokoh terkenal, isu viral, dsb. Dalam hal ini, ***Word Cloud*** berfungsi untuk menyoroti isu apa saja yang sering dikaitkan dengan kata kunci yang dimasukan pada proses crawling. ***Word Cloud*** dapat menjadi fondasi utama dalam analisis sentimen untuk mengetahui arah opini masyarakat terhadap suatu kata kunci
+
+## Crawling Data Twitter
+
+Seperti yang sudah dijelaskan sebelumnya, data teks yang akan disajikan dalam ***Word Cloud*** berasal dari twitter. Data tersebut dapat diperoleh dengan proses crawling. **Crawling** adalah suatu proses dalam mengambil, mengumpulkan, atau mengunduh data dari suatu database
+
+Crawling data di twitter berarti melakukan crawling dari server twitter dengan bantuan *Application Programming Integration* (API) twitter. Oleh karena itu, sebaiknya mendaftarkan diri sebagai developer terlebih dahulu pada [laman ini](https://dev.twitter.com) dengan mengikuti tutorial pada [artikel ini](https://developer.twitter.com/en/tutorials/step-by-step-guide-to-making-your-first-request-to-the-twitter-api-v2) untuk memperoleh kode atau token autentikasi sebagai syarat hak akses terhadap data yang ada di twitter
+
+Setelah memperoleh token *consumer key*, *consumer access*, *access token*, dan *access token secret* dari API, dapat dilakukan proses autentikasi dengan menggunakan fungsi *create_token()* pada package rtweet
+
+```{r eval=FALSE}
+library(rtweet)
+token<- create_token(
+  consumer_key = '',
+  consumer_secret = '',
+  access_token = '',
+  access_secret = '')
+```
+
+Dengan token yang sudah terautentikasi, dapat langsung dilakukan pengambilan data dari twitter dengan menggunakan fungsi *search_tweets()* pada package rtweet. Data yang akan dijadikan ***Word Cloud*** adalah data teks dari cuitan maka perlu menyeleksi data crawling tersebut supaya hanya mengandung data teks saja. Untuk itu, diperlukan package dplyr untuk menjalankan perintah ini
+
+Misalkan akan diambil **1000 tweets terbaru berbahasa Indonesia dengan kata kunci 'bbm'** namun data yang akan dipilih hanyalah data tweets dalam kolom text. Kemudian, dapat ditampilkan data crawling yang telah diperoleh dengan menggunakan fungsi *head()*
+
+```{r eval=FALSE}
+library(dplyr)
+data <- search_tweets('bbm', 1000, lang='id',type = 'recent') %>% select(text)
+head(data)
+```
+
+```{r echo=FALSE}
+library(dplyr)
+setwd("~/R/porto")
+data <- read.csv('crawling_bbm.csv')
+head(data$text)
+```
+
+Data teks tersebut masih mengandung beberapa elemen yang tidak berguna yang berpotensi menggeser kata-kata yang seharusnya ditampilkan. Tentunya elemen yang tidak penting tersebut tidak diinginkan keberadaannya dalam ***Word Cloud*** sehingga perlu dihapuskan dengan proses cleaning data
+
+## Cleaning Data Teks
+
+Cleaning merupakan proses *pre-processing* untuk memperoleh data yang benar-benar mengandung informasi penting sesuai dengan yang dikehendaki. Proses cleaning pada data teks tentunya memiliki teknik yang berbeda dengan data angka, R telah menyediakan package khusus untuk hal ini, yaitu **textclean** dan **tm**
+
+### Menghilangkan elemen tidak penting dengan textclean
+
+Tahapan yang harus dilalui untuk membersihkan data tweets adalah sebagai berikut :
+
+* Menghilangkan substring '\n' dengan fungsi *gsub()* lalu mengganti nama data yang sudah bersih dari substring '\n' menjadi tweets1
+* Menghilangkan link-link html dan url, emoji, hashtag, dan mention pada tweets1
+* Tahapan tersebut dapat dilakukan secara simultan dengan menggunakan **pipe operator** '%>%'
+
+Berikut adalah syntax yang digunakan
+
+```{r}
+library(textclean)
+tweets1 <- gsub("\n", "",data)
+tweets1 <- tweets1 %>%
+  replace_html() %>%
+  replace_url()%>%
+  replace_emoji(.) %>%
+  replace_html(.) %>%
+  replace_tag(tweets1, pattern = "@([A-Za-z0-9_]+)", replacement = "") %>%
+  replace_hash(tweets1, pattern = "#([A-Za-z0-9_]+)", replacement = "")
+```
+
+### Membersihkan dan menyamakan format kata dengan tm
+
+Hal yang selanjutnya perlu dilakukan dalam cleaning data hasil crawling ini adalah :
+
+* Menghilangkan angka, tanda baca, spasi, dan stopwords
+* Mengubah format kata menjadi huruf kecil semua
+
+Dalam sebuah cuitan, terkadang mengandung kata-kata yang tidak mengandung arti, seperti 'dan', 'yang', 'ini', 'itu', dsb. Kata-kata tersebut dikenal sebagai *stop words*. Keberadaan *stop words* tidak memberi arti apapun terhadap sebuah teks, tetapi *stop words* sangat mengganggu proses *text mining* karena berpotensi menggeser kata-kata yang seharusnya ditampilkan
+
+Menghilangkan *stop words* berbahasa Inggris tentunya lebih mudah dilakukan karena sudah tersedia dalam R itu sendiri. Namun untuk menghilangkan *stop words* dalam bahasa lain perlu bantuan file eskternal yang mengandung daftar *stop words*. Beruntungnya, telah tersedia file daftar *stop words* berbahasa Indonesia pada [laman ini](https://www.kaggle.com/oswinrh/indonesian-stoplist). File **'stopword_list.csv'** tersebut kemudian disimpan dalam objek yang misalkan bernama 'stop' dengan syntax berikut
+
+```{r}
+stop <- file('stopword_list.txt', open = 'r')
+stop <- readLines(stop)
+```
+
+Untuk dapat dilakukan penghapusan *stop words* maupun penyeragaman format kata dengan menggunakan package tm, perlu diubah terlebih dahulu kata-kata dalam teks menjadi bentuk **corpus**. Selanjutnya dengan memanfaatkan pipe operator, dapat dilakukan tahapan ini secara simultan seperti syntax berikut :
+
+```{r}
+library(tm)
+tweet_clean <- Corpus(VectorSource(tweets1))
+tc <- tweet_clean %>%
+  tm_map(removeNumbers) %>%
+  tm_map(removePunctuation) %>%
+  tm_map(stripWhitespace) %>%
+  tm_map(content_transformer(tolower))%>%
+  tm_map(removeWords, stop)
+```
+
+## Membuat Word Cloud
+
+***Word Cloud*** memperhatikan frekuensi setiap kata dalam pembuatannya, maka diperlukan sebuah matriks yang dapat menyajikan frekuensi setiap kata. Matriks tersebut dapat diperoleh dengan fungsi *TermDocumentMatrix()*
+
+```{r}
+tdm <- TermDocumentMatrix(tc)
+tdm2 <- as.matrix(tdm)
+```
+
+Selanjutnya, matriks tersebut diurutkan berdasarkan frekuensi kata dari yang terbesar. Untuk mempermudah pemahaman terhadap kata yang paling sering muncul, dapat dibuat sebuah *dataframe* dengan syntax seperti berikut :
+
+```{r}
+word <- sort(rowSums(tdm2), decreasing = T)
+word <- data.frame(word=names(word), freq=(word))
+```
+
+Dataframe tersebut dijadikan sumber data dalam pembuatan ***Word Cloud***. Sebelum itu, aktifkan terlebih dahulu package wordcloud2 lalu gunakan fungsi *wordcloud2()* dan tentukan ukuran gambar ***Word Cloud***, misal 1.6 dan tema warna pada ***Word Cloud***, misal random-light
+
+```{r}
+library(wordcloud2)
+wc <- wordcloud2(word,
+                 size=1.6,
+                 color='random-light')
+wc
+```
+
+Dengan ***Word Cloud*** di atas terlihat bahwa kata harga, blt, dan kenaikan adalah kata yang paling sering dikaitkan dengan bbm pada cuitan pengguna twitter akhir-akhir ini. Berdasarkan ***Word Cloud*** ini  dapat diambil sebuah informasi penting bahwa bbm sedang mengalami kenaikan harga. Selain itu, blt tengah ramai dibicarakan oleh masyarakat Indonesia khususnya pengguna twitter. 
+
+Informasi-informasi ini dapat dijadikan fondasi dasar untuk analisis data teks atau analisis wacana lanjutan seperti analisis sentimen untuk melihat kecenderungan arah opini masyarakat
