@@ -1,4 +1,7 @@
 # WORDCLOUD
+
+![image](https://github.com/dewikinasih/Tweet-WordCloud/blob/2320ca6d2bdf5599d69cde785568df536e112698/wordcloud%20bbm.png)
+
 I created a wordcloud to visualize text data that i have taken from twitter by crawling.
 I would like to know what are people out there (especially twitter user) talking about the BBM's issue in the middle of last September.
 The procces of crawling, cleaning, toknizing, etc until the wordcloud is done is provide in the link below.
