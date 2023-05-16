@@ -2,11 +2,9 @@
 
 ![image](https://github.com/dewikinasih/Tweet-WordCloud/blob/2320ca6d2bdf5599d69cde785568df536e112698/wordcloud%20bbm.png)
 
-I created a wordcloud to visualize text data that i have taken from twitter by crawling.
-I would like to know what are people out there (especially twitter user) talking about the BBM's issue in the middle of last September.
-The procces of crawling, cleaning, toknizing, etc until the wordcloud is done is provide in the link below.
+I created a wordcloud to visualize text data that I've been taken from twitter by crawling.
 
-I am eager to know what is people wondering about the increasing price of BBM in Indonesia. I got the data through crawling from twitter, because twitter is the most popular social media. The data contains 1000 tweets with keyword ‘bbm’ . Before i create the word cloud, of course i clean the data first to remove any unuseful component.
+I am eager to know what is people (especially twitter netizen) wondering about the increasing price of BBM in Indonesia in the middle of last September. I got the data through crawling from twitter, because twitter is the most popular social media. The data contains 1000 tweets with keyword ‘bbm’ . Before I create the word cloud, of course I clean the data first to remove any unuseful component.The procces of crawling, cleaning, toknizing, etc until the wordcloud is done is provide in the link below.
 
 Package Used: twitteR, rtweet, dplyr, textclean, tm, wordcloud2
 
